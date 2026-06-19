@@ -1,0 +1,474 @@
+<%- include('../partials/head', { title: 'Übersicht' }) %>
+
+<div class="flex h-full min-h-screen">
+  <%- include('../partials/sidebar') %>
+
+  <main class="ml-64 flex-1 p-8">
+
+    <!-- ═══ Header ═══════════════════════════════════════════════════════════ -->
+    <div class="flex items-center justify-between mb-7">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Email Security Übersicht</h1>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Gesamtstatus aller E-Mail-Sicherheitsbereiche</p>
+      </div>
+      <select onchange="window.location.href='?days='+this.value"
+              class="text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option value="7"  <%= days==7  ? 'selected' : '' %>>Letzte 7 Tage</option>
+        <option value="30" <%= days==30 ? 'selected' : '' %>>Letzte 30 Tage</option>
+        <option value="90" <%= days==90 ? 'selected' : '' %>>Letzte 90 Tage</option>
+      </select>
+    </div>
+
+    <!-- ═══ Security Status Karten ════════════════════════════════════════════ -->
+    <%
+      const ssPct    = secureScore ? parseFloat(secureScore.percentage || 0) : null;
+      const ssColor  = ssPct === null ? null : ssPct >= 80 ? '#22c55e' : ssPct >= 60 ? '#f59e0b' : ssPct >= 40 ? '#f97316' : '#ef4444';
+      const ssLabel  = ssPct === null ? null : ssPct >= 80 ? 'Sehr gut' : ssPct >= 60 ? 'Gut' : ssPct >= 40 ? 'Ausbaufähig' : 'Kritisch';
+
+      const dnsIssues = (dnsHealth || []).reduce((s, d) => s + (parseInt(d.issues_count) || 0), 0);
+      const dnsDomains = (dnsHealth || []).length;
+      const dnsColor  = dnsDomains === 0 ? null : dnsIssues === 0 ? '#22c55e' : dnsIssues <= 2 ? '#f59e0b' : '#ef4444';
+      const dnsLabel  = dnsDomains === 0 ? null : dnsIssues === 0 ? 'Alles OK' : dnsIssues === 1 ? '1 Problem' : dnsIssues + ' Probleme';
+
+      const alertTotal = alertStats ? (alertStats.total || 0) : 0;
+      const alertCrit  = alertStats ? (alertStats.bySeverity.critical || 0) : 0;
+      const alertHigh  = alertStats ? (alertStats.bySeverity.high || 0) : 0;
+      const alertColor = alertCrit > 0 ? '#ef4444' : alertHigh > 0 ? '#f97316' : alertTotal > 0 ? '#f59e0b' : '#22c55e';
+      const alertLabel = alertCrit > 0 ? alertCrit + ' kritisch' : alertHigh > 0 ? alertHigh + ' hoch' : alertTotal > 0 ? alertTotal + ' offen' : 'Keine Alerts';
+
+      const actSent = emailActivity ? emailActivity.totalSent : null;
+      const actRecv = emailActivity ? emailActivity.totalReceived : null;
+    %>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+
+      <!-- Microsoft Secure Score -->
+      <a href="/dashboard/security-score"
+         class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all group block">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Secure Score</span>
+          <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+        <% if (ssPct !== null) { %>
+          <div class="flex items-end gap-3 mb-3">
+            <span class="text-3xl font-bold" style="color: <%= ssColor %>"><%= Math.round(ssPct) %>%</span>
+            <span class="text-sm font-medium pb-0.5" style="color: <%= ssColor %>"><%= ssLabel %></span>
+          </div>
+          <div class="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
+            <div class="h-full rounded-full transition-all" style="width:<%= Math.round(ssPct) %>%; background-color: <%= ssColor %>"></div>
+          </div>
+          <p class="text-xs text-slate-400"><%= parseFloat(secureScore.current_score||0).toFixed(0) %> / <%= parseFloat(secureScore.max_score||0).toFixed(0) %> Punkte · Ø <%= parseFloat(secureScore.avg_comparable_score||0).toFixed(1) %>%</p>
+        <% } else { %>
+          <p class="text-2xl font-bold text-slate-300 dark:text-slate-600 mb-2">–</p>
+          <p class="text-xs text-slate-400">Noch keine Daten.<br>Graph API konfigurieren.</p>
+        <% } %>
+      </a>
+
+      <!-- DNS Gesundheit -->
+      <a href="/dashboard/dns-health"
+         class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all group block">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">DNS Gesundheit</span>
+          <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+        <% if (dnsDomains > 0) { %>
+          <div class="flex items-end gap-2 mb-3">
+            <span class="text-3xl font-bold" style="color: <%= dnsColor %>"><%= dnsIssues %></span>
+            <span class="text-sm font-medium pb-0.5 text-slate-500">Problem<%= dnsIssues !== 1 ? 'e' : '' %></span>
+          </div>
+          <% const lastCheck = dnsHealth[0]; %>
+          <div class="flex gap-1.5 mb-2 flex-wrap">
+            <% ['spf_valid','dkim_valid','dmarc_valid'].forEach(key => {
+              const allOk = dnsHealth.every(d => d[key] == 1);
+              const labels = { spf_valid: 'SPF', dkim_valid: 'DKIM', dmarc_valid: 'DMARC' };
+            %>
+            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium
+              <%= allOk ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' %>">
+              <%= allOk ? '✓' : '✗' %> <%= labels[key] %>
+            </span>
+            <% }) %>
+          </div>
+          <p class="text-xs text-slate-400"><%= dnsDomains %> Domain<%= dnsDomains !== 1 ? 's' : '' %> überwacht</p>
+        <% } else { %>
+          <p class="text-2xl font-bold text-slate-300 dark:text-slate-600 mb-2">–</p>
+          <p class="text-xs text-slate-400">Noch keine Prüfung.<br>DNS_CHECK_DOMAINS in .env setzen.</p>
+        <% } %>
+      </a>
+
+      <!-- E-Mail Aktivität (Mail Flow) -->
+      <a href="/dashboard/mail-flow"
+         class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all group block">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mail Flow</span>
+          <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+        <% if (actSent !== null) { %>
+          <div class="mb-3">
+            <div class="flex items-baseline gap-1 mb-1">
+              <span class="text-3xl font-bold text-blue-500"><%= actSent.toLocaleString() %></span>
+              <span class="text-sm text-slate-400">gesendet</span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span class="text-xl font-semibold text-slate-600 dark:text-slate-300"><%= actRecv.toLocaleString() %></span>
+              <span class="text-xs text-slate-400">empfangen</span>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400">letzte 7 Tage · Exchange Online</p>
+        <% } else { %>
+          <p class="text-2xl font-bold text-slate-300 dark:text-slate-600 mb-2">–</p>
+          <p class="text-xs text-slate-400">Noch keine Daten.<br>Graph API konfigurieren.</p>
+        <% } %>
+      </a>
+
+      <!-- Exchange Alerts -->
+      <a href="/dashboard/alerts"
+         class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all group block">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Exchange Alerts</span>
+          <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+        <div class="flex items-end gap-2 mb-3">
+          <span class="text-3xl font-bold" style="color: <%= alertColor %>"><%= alertTotal %></span>
+          <span class="text-sm font-medium pb-0.5" style="color: <%= alertColor %>"><%= alertLabel %></span>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <% [['critical','Krit.','bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'],['high','Hoch','bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'],['medium','Mittel','bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'],['low','Niedrig','bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400']].forEach(([key, label, cls]) => {
+            const cnt = alertStats ? (alertStats.bySeverity[key] || 0) : 0;
+            if (cnt > 0) { %>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold <%= cls %>"><%= cnt %> <%= label %></span>
+          <% } }) %>
+          <% if (alertTotal === 0) { %><span class="text-xs text-slate-400">SecurityAlert.Read.All</span><% } %>
+        </div>
+      </a>
+    </div>
+
+    <!-- ═══ TLSRPT Mini-Summary ═══════════════════════════════════════════════ -->
+    <% if (tlsrptStats && tlsrptStats.totalReports > 0) { %>
+    <a href="/dashboard/tlsrpt"
+       class="flex items-center gap-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-5 py-4 mb-8 hover:shadow-sm hover:border-blue-300 dark:hover:border-blue-700 transition-all group">
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+        <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">TLS-RPT</span>
+      </div>
+      <div class="flex items-center gap-1 text-sm">
+        <span class="font-bold text-green-500"><%= tlsrptStats.totalOk.toLocaleString() %></span>
+        <span class="text-slate-400">Sessions OK</span>
+      </div>
+      <% if (tlsrptStats.totalFailed > 0) { %>
+      <div class="flex items-center gap-1 text-sm">
+        <span class="font-bold text-red-500"><%= tlsrptStats.totalFailed.toLocaleString() %></span>
+        <span class="text-slate-400">fehlgeschlagen</span>
+      </div>
+      <% } %>
+      <div class="flex items-center gap-2 flex-1">
+        <div class="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden max-w-xs">
+          <div class="h-full rounded-full <%= tlsrptStats.successRate >= 99 ? 'bg-green-500' : tlsrptStats.successRate >= 95 ? 'bg-yellow-400' : 'bg-red-500' %>"
+               style="width:<%= tlsrptStats.successRate %>%"></div>
+        </div>
+        <span class="text-xs text-slate-400"><%= tlsrptStats.successRate %>% Erfolgsrate · <%= tlsrptStats.totalReports %> Berichte</span>
+      </div>
+      <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+    </a>
+    <% } %>
+
+    <!-- ═══ DMARC Authentifizierung ══════════════════════════════════════════ -->
+    <div class="flex items-center gap-3 mb-5">
+      <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+      <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest px-2">DMARC Authentifizierung</span>
+      <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+    </div>
+
+    <!-- DMARC Score + KPIs -->
+    <div class="grid grid-cols-5 gap-4 mb-5">
+      <!-- DMARC Security Score Gauge -->
+      <div class="col-span-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex flex-col items-center justify-center">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">DMARC Score</p>
+        <div class="relative w-28 h-28">
+          <svg class="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="#e2e8f0" class="dark:stroke-slate-700" stroke-width="10"/>
+            <circle cx="50" cy="50" r="42" fill="none"
+              stroke="<%= score.score >= 80 ? '#22c55e' : score.score >= 60 ? '#eab308' : '#ef4444' %>"
+              stroke-width="10"
+              stroke-dasharray="<%= Math.round(score.score * 2.638) %> 264"
+              stroke-linecap="round"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-3xl font-black text-slate-900 dark:text-white"><%= score.grade %></span>
+            <span class="text-xs text-slate-400 dark:text-slate-500"><%= score.score %>/100</span>
+          </div>
+        </div>
+        <div class="mt-3 text-center">
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+            <%= score.policy === 'reject' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400' : score.policy === 'quarantine' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' %>">
+            Policy: <%= score.policy %>
+          </span>
+        </div>
+      </div>
+
+      <!-- DMARC KPIs -->
+      <div class="col-span-4 grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+          <p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wide">E-Mails gesamt</p>
+          <p class="text-3xl font-bold text-slate-900 dark:text-white mt-2"><%= overview.totalEmails.toLocaleString('de-DE') %></p>
+          <% if (trend.emailsDelta !== null) { %>
+          <p class="text-xs mt-1 <%= trend.emailsDelta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400' %>">
+            <%= trend.emailsDelta >= 0 ? '▲' : '▼' %> <%= Math.abs(trend.emailsDelta) %>% vs. Vorperiode
+          </p>
+          <% } else { %>
+          <p class="text-slate-400 dark:text-slate-500 text-xs mt-1"><%= overview.totalRecords %> Berichte</p>
+          <% } %>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+          <p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wide">DMARC Alignment</p>
+          <p class="text-3xl font-bold mt-2 <%= overview.alignmentRate >= 95 ? 'text-green-600 dark:text-green-400' : overview.alignmentRate >= 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400' %>">
+            <%= overview.alignmentRate %>%
+          </p>
+          <div class="mt-2 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full">
+            <div class="h-1.5 rounded-full <%= overview.alignmentRate >= 95 ? 'bg-green-500' : overview.alignmentRate >= 80 ? 'bg-yellow-500' : 'bg-red-500' %>"
+                 style="width:<%= overview.alignmentRate %>%"></div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+          <p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wide">DKIM Pass Rate</p>
+          <p class="text-3xl font-bold mt-2 <%= overview.dkimPassRate >= 95 ? 'text-green-600 dark:text-green-400' : overview.dkimPassRate >= 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400' %>">
+            <%= overview.dkimPassRate %>%
+          </p>
+          <div class="mt-2 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full">
+            <div class="h-1.5 rounded-full bg-blue-500" style="width:<%= overview.dkimPassRate %>%"></div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+          <p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wide">SPF Pass Rate</p>
+          <p class="text-3xl font-bold mt-2 <%= overview.spfPassRate >= 95 ? 'text-green-600 dark:text-green-400' : overview.spfPassRate >= 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400' %>">
+            <%= overview.spfPassRate %>%
+          </p>
+          <div class="mt-2 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full">
+            <div class="h-1.5 rounded-full bg-indigo-500" style="width:<%= overview.spfPassRate %>%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DMARC Category Cards -->
+    <div class="grid grid-cols-3 gap-4 mb-5">
+      <a href="/dashboard/reports?category=compatible&days=<%= days %>"
+         class="bg-white dark:bg-slate-800 rounded-xl border-2 border-green-200 dark:border-green-900 p-5 shadow-sm hover:border-green-400 dark:hover:border-green-700 transition-colors group">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-green-100 dark:bg-green-900/40 rounded-lg flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-900/60 transition-colors">
+            <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-green-700 dark:text-green-400"><%= categories.compatible.toLocaleString('de-DE') %></p>
+            <p class="text-sm font-medium text-green-600 dark:text-green-500">DMARC Compatible</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">DKIM + SPF bestanden</p>
+          </div>
+        </div>
+      </a>
+
+      <a href="/dashboard/reports?category=forwarded&days=<%= days %>"
+         class="bg-white dark:bg-slate-800 rounded-xl border-2 border-blue-200 dark:border-blue-900 p-5 shadow-sm hover:border-blue-400 dark:hover:border-blue-700 transition-colors group">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/60 transition-colors">
+            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-blue-700 dark:text-blue-400"><%= categories.forwarded.toLocaleString('de-DE') %></p>
+            <p class="text-sm font-medium text-blue-600 dark:text-blue-500">Weitergeleitet</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">Ein Mechanismus bestanden</p>
+          </div>
+        </div>
+      </a>
+
+      <a href="/dashboard/reports?category=failed&days=<%= days %>"
+         class="bg-white dark:bg-slate-800 rounded-xl border-2 border-red-200 dark:border-red-900 p-5 shadow-sm hover:border-red-400 dark:hover:border-red-700 transition-colors group">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-red-100 dark:bg-red-900/40 rounded-lg flex items-center justify-center group-hover:bg-red-200 dark:group-hover:bg-red-900/60 transition-colors">
+            <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-red-700 dark:text-red-400"><%= categories.failed.toLocaleString('de-DE') %></p>
+            <p class="text-sm font-medium text-red-600 dark:text-red-500">Fehlgeschlagen</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">DKIM + SPF fehlgeschlagen</p>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- DMARC Charts -->
+    <div class="grid grid-cols-3 gap-6 mb-5">
+      <div class="col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-4">DMARC E-Mail Volumen</h2>
+        <div style="height:200px"><canvas id="timelineChart"></canvas></div>
+      </div>
+      <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-4">Disposition</h2>
+        <div style="height:150px"><canvas id="dispositionChart"></canvas></div>
+        <div class="mt-3 space-y-1.5">
+          <div class="flex justify-between text-xs"><span class="flex items-center gap-1.5 text-slate-600 dark:text-slate-400"><span class="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block"></span>None (OK)</span><span class="font-medium text-slate-700 dark:text-slate-300"><%= overview.dispNone.toLocaleString('de-DE') %></span></div>
+          <div class="flex justify-between text-xs"><span class="flex items-center gap-1.5 text-slate-600 dark:text-slate-400"><span class="w-2.5 h-2.5 rounded-sm bg-yellow-400 inline-block"></span>Quarantine</span><span class="font-medium text-slate-700 dark:text-slate-300"><%= overview.dispQuarantine.toLocaleString('de-DE') %></span></div>
+          <div class="flex justify-between text-xs"><span class="flex items-center gap-1.5 text-slate-600 dark:text-slate-400"><span class="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block"></span>Reject</span><span class="font-medium text-slate-700 dark:text-slate-300"><%= overview.dispReject.toLocaleString('de-DE') %></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DMARC Empfehlungen -->
+    <% if (score.recommendations && score.recommendations.length > 0) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 mb-5">
+      <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">DMARC Empfehlungen</h2>
+      <div class="space-y-2">
+        <% score.recommendations.forEach(function(r) { %>
+        <div class="flex items-start gap-3 p-3 rounded-lg
+          <%= r.severity === 'critical' ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' :
+              r.severity === 'warning'  ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800' :
+              r.severity === 'success'  ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' :
+                                          'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' %>">
+          <% if (r.severity === 'critical') { %><svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          <% } else if (r.severity === 'warning') { %><svg class="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          <% } else if (r.severity === 'success') { %><svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          <% } else { %><svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg><% } %>
+          <p class="text-sm <%= r.severity === 'critical' ? 'text-red-700 dark:text-red-400' : r.severity === 'warning' ? 'text-yellow-700 dark:text-yellow-400' : r.severity === 'success' ? 'text-green-700 dark:text-green-400' : 'text-blue-700 dark:text-blue-400' %>"><%= r.text %></p>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Bottom Row: Top Sources + Top Orgs -->
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+          <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Top Quell-IPs</h2>
+          <a href="/dashboard/sources" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Alle →</a>
+        </div>
+        <div class="divide-y divide-slate-50 dark:divide-slate-700/50">
+          <% topSources.forEach(function(s) { %>
+          <div class="px-5 py-3">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-sm font-mono text-slate-700 dark:text-slate-300"><%= s.sourceIp %></span>
+              <span class="text-xs font-medium <%= s.passRate >= 95 ? 'text-green-600 dark:text-green-400' : s.passRate >= 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400' %>"><%= s.passRate %>%</span>
+            </div>
+            <div class="h-1 bg-slate-100 dark:bg-slate-700 rounded-full">
+              <div class="h-1 rounded-full <%= s.passRate >= 95 ? 'bg-green-500' : s.passRate >= 80 ? 'bg-yellow-500' : 'bg-red-500' %>" style="width:<%= s.passRate %>%"></div>
+            </div>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1"><%= s.totalEmails.toLocaleString('de-DE') %> E-Mails · <%= s.reportingOrgs %></p>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Berichtende Organisationen</h2>
+        </div>
+        <div class="divide-y divide-slate-50 dark:divide-slate-700/50">
+          <% topOrgs.forEach(function(org, i) { %>
+          <div class="px-5 py-3 flex items-center gap-3">
+            <span class="text-xs font-bold text-slate-400 dark:text-slate-500 w-5"><%= i+1 %></span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate"><%= org.orgName %></p>
+              <p class="text-xs text-slate-400 dark:text-slate-500"><%= org.reportCount %> Berichte · letzter: <%= org.lastReport %></p>
+            </div>
+            <span class="text-sm font-semibold text-slate-700 dark:text-slate-200"><%= org.totalEmails.toLocaleString('de-DE') %></span>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Domains -->
+    <% if (domains.length > 0) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Überwachte Domains</h2>
+        <a href="/dashboard/reports" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Alle Berichte →</a>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-700/50">
+          <tr>
+            <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Domain</th>
+            <th class="px-5 py-2.5 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">E-Mails</th>
+            <th class="px-5 py-2.5 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Pass Rate</th>
+            <th class="px-5 py-2.5 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Unique IPs</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-50 dark:divide-slate-700/50">
+          <% domains.forEach(function(d) { %>
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+            <td class="px-5 py-3 font-medium text-slate-800 dark:text-slate-200"><%= d.domain %></td>
+            <td class="px-5 py-3 text-right text-slate-600 dark:text-slate-300"><%= d.totalEmails.toLocaleString('de-DE') %></td>
+            <td class="px-5 py-3 text-right">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                <%= d.passRate >= 95 ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400' : d.passRate >= 80 ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' %>">
+                <%= d.passRate %>%
+              </span>
+            </td>
+            <td class="px-5 py-3 text-right text-slate-600 dark:text-slate-300"><%= d.uniqueIPs %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+
+  </main>
+</div>
+
+<script>
+const timelineData = <%- timeline %>;
+const isDark = () => document.documentElement.classList.contains('dark');
+
+function gridColor() { return isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'; }
+function tickColor() { return isDark() ? '#94a3b8' : '#64748b'; }
+
+new Chart(document.getElementById('timelineChart').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels: timelineData.map(d => d.date),
+    datasets: [
+      { label: 'Bestanden',      data: timelineData.map(d => d.passed), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.08)', fill: true, tension: 0.3, pointRadius: 3 },
+      { label: 'Fehlgeschlagen', data: timelineData.map(d => d.failed), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)',  fill: true, tension: 0.3, pointRadius: 3 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { size: 11 }, color: tickColor() } } },
+    scales: {
+      x: { grid: { color: gridColor() }, ticks: { font: { size: 10 }, color: tickColor(), maxTicksLimit: 10 } },
+      y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { font: { size: 10 }, color: tickColor() } },
+    }
+  }
+});
+
+new Chart(document.getElementById('dispositionChart').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: ['None (OK)', 'Quarantine', 'Reject'],
+    datasets: [{ data: [<%= overview.dispNone %>, <%= overview.dispQuarantine %>, <%= overview.dispReject %>], backgroundColor: ['#22c55e', '#facc15', '#ef4444'], borderWidth: 0 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toLocaleString('de-DE')}` } } }
+  }
+});
+
+document.getElementById('theme-toggle')?.addEventListener('click', () => {
+  setTimeout(() => location.reload(), 150);
+});
+</script>
+
+</body>
+</html>

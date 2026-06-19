@@ -1,0 +1,145 @@
+<%- include('../partials/head', { title: 'Sicherheitswarnungen' }) %>
+<div class="flex h-full">
+  <%- include('../partials/sidebar') %>
+  <main class="flex-1 ml-64 p-6 overflow-y-auto">
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Sicherheitswarnungen</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Microsoft Defender Alerts via Graph API</p>
+      </div>
+    </div>
+
+    <!-- Severity Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <% const sevConfig = {
+        critical:      { label: 'Kritisch',    color: 'text-red-600 dark:text-red-400',    bg: 'bg-red-50 dark:bg-red-900/20',    border: 'border-red-200 dark:border-red-800' },
+        high:          { label: 'Hoch',         color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800' },
+        medium:        { label: 'Mittel',       color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-800' },
+        low:           { label: 'Niedrig',      color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 dark:bg-blue-900/20',   border: 'border-blue-200 dark:border-blue-800' },
+        informational: { label: 'Info',         color: 'text-slate-600 dark:text-slate-400', bg: 'bg-slate-50 dark:bg-slate-800',    border: 'border-slate-200 dark:border-slate-700' },
+      }; %>
+      <% Object.entries(sevConfig).forEach(([key, cfg]) => { %>
+      <a href="?severity=<%= key %>" class="<%= cfg.bg %> rounded-xl p-4 border <%= cfg.border %> hover:opacity-90 transition-opacity">
+        <p class="text-xs font-semibold <%= cfg.color %> uppercase tracking-wider"><%= cfg.label %></p>
+        <p class="text-2xl font-bold <%= cfg.color %> mt-1"><%= alertStats.bySeverity[key] || 0 %></p>
+      </a>
+      <% }) %>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 mb-4 flex flex-wrap gap-3 items-center">
+      <form method="GET" class="flex flex-wrap gap-3 items-center w-full">
+        <select name="severity" class="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Alle Schweregrade</option>
+          <option value="critical"      <%= filters.severity==='critical'      ? 'selected' : '' %>>Kritisch</option>
+          <option value="high"          <%= filters.severity==='high'          ? 'selected' : '' %>>Hoch</option>
+          <option value="medium"        <%= filters.severity==='medium'        ? 'selected' : '' %>>Mittel</option>
+          <option value="low"           <%= filters.severity==='low'           ? 'selected' : '' %>>Niedrig</option>
+          <option value="informational" <%= filters.severity==='informational' ? 'selected' : '' %>>Info</option>
+        </select>
+        <select name="status" class="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Alle Status</option>
+          <option value="new"        <%= filters.status==='new'        ? 'selected' : '' %>>Neu</option>
+          <option value="inProgress" <%= filters.status==='inProgress' ? 'selected' : '' %>>In Bearbeitung</option>
+          <option value="resolved"   <%= filters.status==='resolved'   ? 'selected' : '' %>>Gelöst</option>
+        </select>
+        <button type="submit" class="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Filtern</button>
+        <a href="/dashboard/alerts" class="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Zurücksetzen</a>
+        <span class="ml-auto text-xs text-slate-400"><%= total %> Warnungen gesamt</span>
+      </form>
+    </div>
+
+    <!-- Alerts List -->
+    <% if (records.length === 0) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-12 border border-slate-200 dark:border-slate-700 text-center">
+      <svg class="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+      </svg>
+      <% if (alertStats.total === 0) { %>
+        <p class="text-slate-600 dark:text-slate-300 font-medium">Noch keine Alertdaten vorhanden</p>
+        <p class="text-sm text-slate-400 mt-1">Konfiguriere die Azure-Credentials in der <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">.env</code>.</p>
+        <p class="text-xs text-slate-400 mt-1">Permission: <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">SecurityAlert.Read.All</code></p>
+      <% } else { %>
+        <p class="text-slate-600 dark:text-slate-300 font-medium">Keine Warnungen für diesen Filter.</p>
+      <% } %>
+    </div>
+    <% } else { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <% const sevBadge = {
+        critical: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+        high: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+        medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+        low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+        informational: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
+        unknown: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
+      };
+      const statusBadge = {
+        new: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+        inProgress: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+        resolved: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+      }; %>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400">Schwere</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400">Titel</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400">Kategorie</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400">Quelle</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400">Status</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400">Erstellt</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+          <% records.forEach(r => { %>
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 rounded text-xs font-semibold <%= sevBadge[r.severity] || sevBadge.unknown %>">
+                <%= r.severity %>
+              </span>
+            </td>
+            <td class="px-4 py-3 text-slate-800 dark:text-slate-200 max-w-xs">
+              <p class="font-medium truncate" title="<%= r.title %>"><%= r.title %></p>
+              <% if (r.description) { %>
+                <p class="text-xs text-slate-400 truncate" title="<%= r.description %>"><%= r.description.substring(0, 100) %><%= r.description.length > 100 ? '...' : '' %></p>
+              <% } %>
+            </td>
+            <td class="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs"><%= r.category || '–' %></td>
+            <td class="px-4 py-3 text-xs">
+              <% const src = r.service_source || '';
+                 const isExchange = src.toLowerCase().includes('office') || src.toLowerCase().includes('exchange') || src.toLowerCase().includes('defender365');
+                 const badgeColor = isExchange ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400';
+                 const label = src.replace('microsoftDefender', 'Defender ').replace('ForOffice365','MDO').replace('ForEndpoint','MDE').replace('exchangeOnlineProtection','EOP').replace('office365','Office 365') || '–';
+              %>
+              <% if (src) { %><span class="px-1.5 py-0.5 rounded text-xs font-medium <%= badgeColor %>"><%= label %></span><% } else { %><span class="text-slate-400">–</span><% } %>
+            </td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 rounded text-xs font-medium <%= statusBadge[r.status] || statusBadge.new %>">
+                <%= r.status || 'new' %>
+              </span>
+            </td>
+            <td class="px-4 py-3 text-xs text-slate-400">
+              <%= r.alert_created instanceof Date ? r.alert_created.toISOString().split('T')[0] : String(r.alert_created || '').split('T')[0] %>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <% if (totalPages > 1) { %>
+    <div class="flex items-center justify-between mt-4 text-xs text-slate-500">
+      <span>Seite <%= page %> von <%= totalPages %> (<%= total %> Einträge)</span>
+      <div class="flex gap-2">
+        <% if (page > 1) { %><a href="?severity=<%= filters.severity %>&status=<%= filters.status %>&page=<%= page-1 %>" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50">← Zurück</a><% } %>
+        <% if (page < totalPages) { %><a href="?severity=<%= filters.severity %>&status=<%= filters.status %>&page=<%= page+1 %>" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50">Weiter →</a><% } %>
+      </div>
+    </div>
+    <% } %>
+    <% } %>
+
+  </main>
+</div>
+</body>
+</html>

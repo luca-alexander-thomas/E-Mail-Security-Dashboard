@@ -1,0 +1,146 @@
+<%- include('../partials/head', { title: 'DNS Gesundheit' }) %>
+<div class="flex h-full">
+  <%- include('../partials/sidebar') %>
+  <main class="flex-1 ml-64 p-6 overflow-y-auto">
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">DNS Gesundheit</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">SPF · DKIM · DMARC · MTA-STS · TLSRPT · BIMI – täglich geprüft via n8n</p>
+      </div>
+    </div>
+
+    <% if (!latest || latest.length === 0) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-12 border border-slate-200 dark:border-slate-700 text-center">
+      <svg class="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+      </svg>
+      <p class="text-lg font-semibold text-slate-600 dark:text-slate-300">Noch keine DNS-Prüfdaten vorhanden</p>
+      <p class="text-sm text-slate-400 mt-2 max-w-lg mx-auto">
+        Trage deine Domain(s) in der <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">.env</code> ein:<br>
+        <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">DNS_CHECK_DOMAINS=example.com,example.de</code><br>
+        Die Prüfung läuft täglich automatisch via Cloudflare DNS-over-HTTPS.
+      </p>
+    </div>
+    <% } else { %>
+
+    <% latest.forEach(row => {
+      const checks = [
+        { key: 'spf',     label: 'SPF',     valid: row.spf_valid,         detail: row.spf_record },
+        { key: 'dkim',    label: 'DKIM',    valid: row.dkim_valid,        detail: row.dkim_selector ? `Selector: ${row.dkim_selector}` : null },
+        { key: 'dmarc',   label: 'DMARC',   valid: row.dmarc_valid,       detail: row.dmarc_policy ? `p=${row.dmarc_policy}` + (row.dmarc_pct ? ` pct=${row.dmarc_pct}` : '') : null },
+        { key: 'mta_sts', label: 'MTA-STS', valid: row.mta_sts_dns_valid, detail: row.mta_sts_mode ? `mode=${row.mta_sts_mode}` : null },
+        { key: 'tlsrpt',  label: 'TLSRPT',  valid: row.tlsrpt_valid,      detail: null },
+        { key: 'bimi',    label: 'BIMI',    valid: row.bimi_valid,         detail: row.bimi_has_vmc ? 'mit VMC' : (row.bimi_valid ? 'ohne VMC' : null) },
+      ];
+      const score = checks.filter(c => c.valid).length;
+      const scoreColor = score === 6 ? 'text-green-500' : score >= 4 ? 'text-yellow-500' : score >= 2 ? 'text-orange-500' : 'text-red-500';
+    %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 mb-4 overflow-hidden">
+      <!-- Domain Header -->
+      <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/>
+            </svg>
+          </div>
+          <div>
+            <p class="font-semibold text-slate-900 dark:text-white font-mono"><%= row.domain %></p>
+            <p class="text-xs text-slate-400">
+              Letzte Prüfung: <%= row.check_date instanceof Date ? row.check_date.toISOString().replace('T',' ').substring(0,19) : String(row.check_date||'').substring(0,19) %>
+            </p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-bold <%= scoreColor %>"><%= score %>/6</p>
+          <p class="text-xs text-slate-400">Checks bestanden</p>
+          <% if ((row.issues_count || 0) > 0) { %>
+          <span class="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-xs rounded-full font-medium">
+            <%= row.issues_count %> Problem(e)
+          </span>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Check Grid -->
+      <div class="grid grid-cols-2 lg:grid-cols-3 gap-0 divide-y divide-x divide-slate-100 dark:divide-slate-700">
+        <% checks.forEach(c => { %>
+        <div class="p-4 flex items-start gap-3">
+          <% if (c.valid === null || c.valid === undefined) { %>
+            <div class="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          <% } else if (c.valid) { %>
+            <div class="w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            </div>
+          <% } else { %>
+            <div class="w-7 h-7 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            </div>
+          <% } %>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold <%= c.valid ? 'text-slate-800 dark:text-slate-200' : c.valid === false ? 'text-red-600 dark:text-red-400' : 'text-slate-400' %>">
+              <%= c.label %>
+            </p>
+            <% if (c.detail) { %>
+              <p class="text-xs text-slate-400 mt-0.5 font-mono truncate" title="<%= c.detail %>"><%= c.detail %></p>
+            <% } else if (c.valid === false) { %>
+              <p class="text-xs text-red-400 mt-0.5">Nicht gefunden</p>
+            <% } else if (c.valid === null || c.valid === undefined) { %>
+              <p class="text-xs text-slate-400 mt-0.5">Nicht geprüft</p>
+            <% } %>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+
+      <!-- Record Details (collapsible) -->
+      <% if (row.spf_record || row.dmarc_record || row.mta_sts_record || row.tlsrpt_record) { %>
+      <details class="border-t border-slate-100 dark:border-slate-700">
+        <summary class="px-5 py-3 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer select-none">
+          DNS Records anzeigen
+        </summary>
+        <div class="px-5 pb-4 space-y-2">
+          <% if (row.spf_record) { %>
+          <div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3">
+            <p class="text-xs font-semibold text-slate-500 mb-1">SPF</p>
+            <code class="text-xs text-slate-700 dark:text-slate-300 break-all"><%= row.spf_record %></code>
+          </div>
+          <% } %>
+          <% if (row.dmarc_record) { %>
+          <div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3">
+            <p class="text-xs font-semibold text-slate-500 mb-1">DMARC</p>
+            <code class="text-xs text-slate-700 dark:text-slate-300 break-all"><%= row.dmarc_record %></code>
+          </div>
+          <% } %>
+          <% if (row.tlsrpt_record) { %>
+          <div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3">
+            <p class="text-xs font-semibold text-slate-500 mb-1">TLSRPT</p>
+            <code class="text-xs text-slate-700 dark:text-slate-300 break-all"><%= row.tlsrpt_record %></code>
+          </div>
+          <% } %>
+          <% if (row.mta_sts_dns) { %>
+          <div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3">
+            <p class="text-xs font-semibold text-slate-500 mb-1">MTA-STS DNS</p>
+            <code class="text-xs text-slate-700 dark:text-slate-300 break-all"><%= row.mta_sts_dns %></code>
+          </div>
+          <% } %>
+          <% if (row.mta_sts_policy_raw) { %>
+          <div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3">
+            <p class="text-xs font-semibold text-slate-500 mb-1">MTA-STS Policy-Datei</p>
+            <pre class="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap"><%= row.mta_sts_policy_raw %></pre>
+          </div>
+          <% } %>
+        </div>
+      </details>
+      <% } %>
+    </div>
+    <% }) %>
+
+    <% } %>
+  </main>
+</div>
+</body>
+</html>

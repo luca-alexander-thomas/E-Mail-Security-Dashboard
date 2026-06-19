@@ -1,0 +1,26 @@
+* { box-sizing: border-box; }
+
+/* Smooth transitions */
+a, button { transition: all 0.15s ease; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Table hover */
+tbody tr { transition: background 0.1s; }
+
+/* Badge pulse for critical alerts */
+.badge-critical { animation: pulse 2s infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.7; }
+}
+
+/* Sidebar active link shadow */
+.sidebar-active { box-shadow: inset 3px 0 0 #3b82f6; }
+
+/* Card hover effect */
+.card-hover:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }

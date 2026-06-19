@@ -1,0 +1,162 @@
+<%- include('../partials/head', { title: 'TLSRPT' }) %>
+<div class="flex h-full">
+  <%- include('../partials/sidebar') %>
+  <main class="flex-1 ml-64 p-6 overflow-y-auto">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">TLSRPT Berichte</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">TLS-Reporting (RFC 8460) – Zustellprobleme über verschlüsselte Verbindungen</p>
+      </div>
+      <div class="flex gap-2">
+        <% [7,30,90].forEach(d => { %>
+        <a href="?days=<%= d %>" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+           <%= days==d ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700' %>">
+          <%= d %> Tage
+        </a>
+        <% }) %>
+      </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Berichte gesamt</p>
+        <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1"><%= stats.totalReports %></p>
+        <p class="text-xs text-slate-400 mt-1"><%= stats.domains %> Domain(s)</p>
+      </div>
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Erfolgsrate</p>
+        <p class="text-3xl font-bold <%= stats.successRate >= 95 ? 'text-green-500' : stats.successRate >= 80 ? 'text-yellow-500' : 'text-red-500' %> mt-1"><%= stats.successRate %>%</p>
+        <p class="text-xs text-slate-400 mt-1"><%= stats.totalOk.toLocaleString() %> erfolgreich</p>
+      </div>
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fehlgeschlagen</p>
+        <p class="text-3xl font-bold <%= stats.totalFailed > 0 ? 'text-red-500' : 'text-green-500' %> mt-1"><%= stats.totalFailed.toLocaleString() %></p>
+        <p class="text-xs text-slate-400 mt-1">TLS-Sessions</p>
+      </div>
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mit Fehlern</p>
+        <p class="text-3xl font-bold <%= stats.reportsWithFailures > 0 ? 'text-yellow-500' : 'text-green-500' %> mt-1"><%= stats.reportsWithFailures %></p>
+        <p class="text-xs text-slate-400 mt-1">von <%= stats.totalReports %> Berichten</p>
+      </div>
+    </div>
+
+    <!-- Timeline Chart -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 mb-6">
+      <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">TLS-Sessions Verlauf</h2>
+      <% if (stats.totalReports === 0) { %>
+        <div class="flex flex-col items-center justify-center py-12 text-slate-400">
+          <svg class="w-12 h-12 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <p class="text-sm">Noch keine TLSRPT-Daten vorhanden.</p>
+          <p class="text-xs mt-1">DNS-Record setzen: <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">_smtp._tls.domain TXT "v=TLSRPTv1; rua=mailto:..."</code></p>
+        </div>
+      <% } else { %>
+        <canvas id="tlsrptChart" height="80"></canvas>
+      <% } %>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <!-- Policy Type Breakdown -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Fehler nach Policy-Typ</h2>
+        <% if (failureTypes.length === 0) { %>
+          <p class="text-slate-400 text-sm">Keine Fehler im Zeitraum.</p>
+        <% } else { %>
+          <% failureTypes.forEach(f => { %>
+          <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700 last:border-0">
+            <span class="text-sm text-slate-700 dark:text-slate-300 font-mono"><%= f.policyType || 'unknown' %></span>
+            <span class="text-sm font-bold text-red-500"><%= f.failedSessions.toLocaleString() %></span>
+          </div>
+          <% }) %>
+        <% } %>
+      </div>
+
+      <!-- Latest Reports -->
+      <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Letzte Berichte</h2>
+        <% if (records.length === 0) { %>
+          <p class="text-slate-400 text-sm">Keine Berichte gefunden.</p>
+        <% } else { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                <th class="pb-2 font-semibold">Domain</th>
+                <th class="pb-2 font-semibold">Organisation</th>
+                <th class="pb-2 font-semibold">Policy</th>
+                <th class="pb-2 font-semibold text-right">OK</th>
+                <th class="pb-2 font-semibold text-right">Fehler</th>
+                <th class="pb-2 font-semibold">Datum</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+              <% records.forEach(r => { %>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                <td class="py-2 font-mono text-xs text-slate-700 dark:text-slate-300"><%= r.domain || r.policy_domain %></td>
+                <td class="py-2 text-slate-600 dark:text-slate-400 truncate max-w-[120px]"><%= r.organization %></td>
+                <td class="py-2">
+                  <span class="px-2 py-0.5 rounded text-xs font-medium
+                    <%= r.policy_type === 'sts' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' %>">
+                    <%= r.policy_type %>
+                  </span>
+                </td>
+                <td class="py-2 text-right text-green-600 dark:text-green-400 font-mono text-xs"><%= (r.sessions_ok || 0).toLocaleString() %></td>
+                <td class="py-2 text-right font-mono text-xs <%= r.sessions_failed > 0 ? 'text-red-500 font-bold' : 'text-slate-400' %>">
+                  <%= (r.sessions_failed || 0).toLocaleString() %>
+                </td>
+                <td class="py-2 text-xs text-slate-400">
+                  <%= r.date_begin instanceof Date ? r.date_begin.toISOString().split('T')[0] : String(r.date_begin || '').split(' ')[0] %>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <% if (totalPages > 1) { %>
+        <div class="flex items-center justify-between mt-4 text-xs text-slate-500">
+          <span>Seite <%= page %> von <%= totalPages %> (<%= total %> Einträge)</span>
+          <div class="flex gap-2">
+            <% if (page > 1) { %><a href="?days=<%= days %>&page=<%= page-1 %>" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">←</a><% } %>
+            <% if (page < totalPages) { %><a href="?days=<%= days %>&page=<%= page+1 %>" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">→</a><% } %>
+          </div>
+        </div>
+        <% } %>
+        <% } %>
+      </div>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>
+
+<script>
+const tlsData = <%- timeline %>;
+if (tlsData.length > 0 && document.getElementById('tlsrptChart')) {
+  const isDark = document.documentElement.classList.contains('dark');
+  const gridColor = isDark ? 'rgba(148,163,184,0.1)' : 'rgba(148,163,184,0.2)';
+  new Chart(document.getElementById('tlsrptChart'), {
+    type: 'line',
+    data: {
+      labels: tlsData.map(d => d.date),
+      datasets: [
+        { label: 'Erfolgreich', data: tlsData.map(d => d.ok),     borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)',  tension: 0.3, fill: true },
+        { label: 'Fehlgeschlagen', data: tlsData.map(d => d.failed), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.3, fill: true },
+      ]
+    },
+    options: {
+      responsive: true, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: isDark ? '#94a3b8' : '#475569', font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: isDark ? '#94a3b8' : '#475569', font: { size: 10 } } },
+        y: { grid: { color: gridColor }, ticks: { color: isDark ? '#94a3b8' : '#475569', font: { size: 10 } } }
+      }
+    }
+  });
+}
+</script>

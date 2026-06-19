@@ -1,0 +1,267 @@
+<%- include('../partials/head', { title: 'Secure Score' }) %>
+<div class="flex h-full">
+  <%- include('../partials/sidebar') %>
+  <main class="flex-1 ml-64 p-6 overflow-y-auto">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Microsoft Secure Score</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Tenant-weite Sicherheitsbewertung via Microsoft Graph API – täglich aktualisiert</p>
+      </div>
+      <div class="flex gap-2">
+        <% [30,60,90].forEach(d => { %>
+        <a href="?days=<%= d %>" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+           <%= days==d ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700' %>">
+          <%= d %> Tage
+        </a>
+        <% }) %>
+      </div>
+    </div>
+
+    <% if (!latest) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-12 border border-slate-200 dark:border-slate-700 text-center">
+      <svg class="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+      </svg>
+      <p class="text-lg font-semibold text-slate-600 dark:text-slate-300">Noch keine Secure Score Daten</p>
+      <p class="text-sm text-slate-400 mt-2 max-w-md mx-auto">
+        Konfiguriere <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">AZURE_TENANT_ID</code>, <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">AZURE_CLIENT_ID</code> und <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">AZURE_CLIENT_SECRET</code> in der <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">.env</code>.<br>
+        Benötigte App-Permission: <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">SecurityEvents.Read.All</code>
+      </p>
+    </div>
+    <% } else {
+      const pct = latest.percentage ? parseFloat(latest.percentage) : (latest.current_score / latest.max_score * 100);
+      const scoreColor = pct >= 80 ? '#22c55e' : pct >= 60 ? '#f59e0b' : pct >= 40 ? '#f97316' : '#ef4444';
+      const scoreLabel = pct >= 80 ? 'Sehr gut' : pct >= 60 ? 'Gut' : pct >= 40 ? 'Ausbaufähig' : 'Kritisch';
+      const scoreLabelColor = pct >= 80 ? 'text-green-500' : pct >= 60 ? 'text-yellow-500' : pct >= 40 ? 'text-orange-500' : 'text-red-500';
+      const avgPctVal = parseFloat(latest.avg_comparable_score||0);
+      const diff = pct - avgPctVal;
+      const scoreDate = latest.score_date instanceof Date ? latest.score_date.toISOString().split('T')[0] : String(latest.score_date || '').split('T')[0];
+
+      // Prepare control data
+      const controls = Array.isArray(latest.control_scores) ? latest.control_scores : [];
+      const incomplete = controls.filter(c => (c.scoreInPercentage || 0) < 100 && (c.implementationStatus !== 'NoLicenseRequired')).sort((a, b) => (a.scoreInPercentage||0) - (b.scoreInPercentage||0));
+      const completed  = controls.filter(c => (c.scoreInPercentage || 0) >= 100);
+      const categories = {};
+      controls.forEach(c => {
+        const cat = c.controlCategory || 'Sonstige';
+        if (!categories[cat]) categories[cat] = { done: 0, total: 0, score: 0, maxScore: 0 };
+        categories[cat].total++;
+        categories[cat].score += parseFloat(c.score || 0);
+        if ((c.scoreInPercentage || 0) >= 100) categories[cat].done++;
+      });
+    %>
+
+    <!-- Score Overview: Gauge + Stats -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+      <!-- Gauge -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center">
+        <div class="relative w-36 h-36">
+          <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-100 dark:text-slate-700"/>
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="<%= scoreColor %>" stroke-width="2.5"
+              stroke-dasharray="<%= Math.round(pct) %> 100" stroke-linecap="round"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-3xl font-bold text-slate-900 dark:text-white"><%= Math.round(pct) %>%</span>
+            <span class="text-xs <%= scoreLabelColor %> font-semibold"><%= scoreLabel %></span>
+          </div>
+        </div>
+        <p class="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+          <%= Math.round(parseFloat(latest.current_score||0)) %> / <%= Math.round(parseFloat(latest.max_score||0)) %> Punkte
+        </p>
+        <p class="text-xs text-slate-400 mt-1">Stand: <%= scoreDate %></p>
+      </div>
+
+      <!-- Stat: Mein Score -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Mein Score</p>
+        <p class="text-3xl font-bold text-slate-900 dark:text-white"><%= parseFloat(latest.current_score||0).toFixed(1) %></p>
+        <p class="text-xs text-slate-400 mt-1">von <%= parseFloat(latest.max_score||0).toFixed(1) %> möglich</p>
+        <div class="mt-3 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div class="h-full rounded-full" style="width: <%= Math.round(pct) %>%; background-color: <%= scoreColor %>"></div>
+        </div>
+      </div>
+
+      <!-- Stat: Branchendurchschnitt -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Ø Vergleichbare Tenants</p>
+        <p class="text-3xl font-bold text-slate-900 dark:text-white"><%= avgPctVal.toFixed(1) %>%</p>
+        <p class="text-xs mt-1 font-semibold <%= diff >= 0 ? 'text-green-500' : 'text-red-500' %>">
+          <%= diff >= 0 ? '▲' : '▼' %> <%= Math.abs(diff).toFixed(1) %>% <%= diff >= 0 ? 'über' : 'unter' %> dem Ø
+        </p>
+        <div class="mt-3 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div class="h-full rounded-full bg-slate-400 dark:bg-slate-500" style="width: <%= Math.min(100, Math.round(avgPctVal)) %>%"></div>
+        </div>
+      </div>
+
+      <!-- Stat: Nutzer & Controls -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Aktive Nutzer</p>
+        <p class="text-3xl font-bold text-slate-900 dark:text-white"><%= (latest.active_user_count || 0) %></p>
+        <p class="text-xs text-slate-400 mt-1">von <%= (latest.licensed_user_count || 0) %> lizenzierten</p>
+        <% if (controls.length > 0) { %>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-3"><span class="font-semibold text-green-500"><%= completed.length %></span> / <%= controls.length %> Controls implementiert</p>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- History Chart -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300">Score-Verlauf (letzte <%= days %> Tage)</h2>
+        <span class="text-xs text-slate-400">vs. Branchendurchschnitt</span>
+      </div>
+      <canvas id="scoreChart" height="70"></canvas>
+    </div>
+
+    <% if (controls.length > 0) { %>
+
+    <!-- Category Overview -->
+    <div class="mb-6">
+      <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Controls nach Kategorie</h2>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <% Object.entries(categories).sort((a, b) => b[1].total - a[1].total).forEach(([cat, data]) => {
+          const catPct = data.total > 0 ? Math.round(data.done / data.total * 100) : 0;
+          const catColor = catPct === 100 ? '#22c55e' : catPct >= 50 ? '#f59e0b' : '#ef4444';
+        %>
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider"><%= cat %></span>
+            <span class="text-xs font-bold" style="color: <%= catColor %>"><%= catPct %>%</span>
+          </div>
+          <div class="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
+            <div class="h-full rounded-full" style="width: <%= catPct %>%; background-color: <%= catColor %>"></div>
+          </div>
+          <p class="text-xs text-slate-400"><%= data.done %> / <%= data.total %> implementiert</p>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+
+    <!-- Top: Offene Controls (Handlungsbedarf) -->
+    <% if (incomplete.length > 0) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 mb-6 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300">Offene Controls – Handlungsbedarf</h2>
+        <span class="text-xs text-slate-400"><%= incomplete.length %> Controls nicht vollständig</span>
+      </div>
+      <div class="divide-y divide-slate-100 dark:divide-slate-700">
+        <% incomplete.slice(0, 12).forEach(c => {
+          const p = Math.round(c.scoreInPercentage || 0);
+          const bar = p === 0 ? '#ef4444' : p < 50 ? '#f97316' : '#f59e0b';
+          const status = c.implementationStatus || '';
+          const statusLabel = {
+            'NotImplemented': 'Nicht implementiert',
+            'PartiallyCompleted': 'Teilweise',
+            'ThirdParty': 'Drittanbieter',
+            'CustomerManagedOpportunity': 'Manuell prüfen',
+            'Default': '',
+          }[status] || status;
+        %>
+        <div class="px-5 py-3 flex items-center gap-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+               style="background-color: <%= bar %>22">
+            <span class="text-xs font-bold" style="color: <%= bar %>"><%= p %>%</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm text-slate-800 dark:text-slate-200 font-medium truncate"><%= c.controlName %></span>
+              <span class="text-xs px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex-shrink-0"><%= c.controlCategory || '' %></span>
+            </div>
+            <div class="h-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" style="width: <%= p %>%; background-color: <%= bar %>"></div>
+            </div>
+          </div>
+          <% if (statusLabel) { %>
+          <span class="text-xs text-slate-400 flex-shrink-0 hidden lg:block"><%= statusLabel %></span>
+          <% } %>
+          <span class="text-xs font-semibold text-slate-500 flex-shrink-0"><%= parseFloat(c.score||0).toFixed(1) %> Pkt</span>
+        </div>
+        <% }) %>
+        <% if (incomplete.length > 12) { %>
+        <div class="px-5 py-3 text-xs text-slate-400 text-center">... und <%= incomplete.length - 12 %> weitere</div>
+        <% } %>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Completed Controls -->
+    <% if (completed.length > 0) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300">Implementierte Controls (<%= completed.length %>)</h2>
+      </div>
+      <div class="p-4 flex flex-wrap gap-2">
+        <% completed.forEach(c => { %>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+          <%= c.controlName %>
+        </span>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+
+    <% } /* controls.length > 0 */ %>
+    <% } /* latest */ %>
+
+  </main>
+</div>
+</body>
+</html>
+
+<script>
+const histData = <%- history %>;
+if (histData.length > 0 && document.getElementById('scoreChart')) {
+  const isDark = document.documentElement.classList.contains('dark');
+  const gridColor = isDark ? 'rgba(148,163,184,0.1)' : 'rgba(148,163,184,0.2)';
+  new Chart(document.getElementById('scoreChart'), {
+    type: 'line',
+    data: {
+      labels: histData.map(d => d.date),
+      datasets: [
+        {
+          label: 'Mein Score',
+          data: histData.map(d => d.score),
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.1)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: histData.length === 1 ? 5 : 3,
+        },
+        {
+          label: 'Ø Vergleichstenants',
+          data: histData.map(d => d.avgComparableScore),
+          borderColor: '#94a3b8',
+          borderDash: [4,4],
+          tension: 0.3,
+          fill: false,
+          pointRadius: histData.length === 1 ? 5 : 3,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: isDark ? '#94a3b8' : '#475569', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(1)} Punkte`,
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: isDark ? '#94a3b8' : '#475569', font: { size: 10 } } },
+        y: {
+          grid: { color: gridColor },
+          ticks: { color: isDark ? '#94a3b8' : '#475569', font: { size: 10 } },
+          suggestedMin: 0,
+        }
+      }
+    }
+  });
+}
+</script>

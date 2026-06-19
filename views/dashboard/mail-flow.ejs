@@ -1,0 +1,261 @@
+<%- include('../partials/head', { title: 'Mail Flow' }) %>
+<div class="flex h-full">
+  <%- include('../partials/sidebar') %>
+  <main class="flex-1 ml-64 p-6 overflow-y-auto">
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Mail Flow & E-Mail Aktivität</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Exchange Online – Microsoft Graph Reports API</p>
+      </div>
+      <div class="flex gap-2">
+        <% [7,30,90].forEach(d => { %>
+        <a href="?days=<%= d %>" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+           <%= days==d ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700' %>">
+          <%= d %> Tage
+        </a>
+        <% }) %>
+      </div>
+    </div>
+
+    <!-- ═══ E-Mail Aktivität (primärer Block, immer anzeigen) ═══ -->
+    <div class="mb-6">
+      <div class="flex items-center gap-2 mb-4">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white">E-Mail Aktivität</h2>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium">Exchange Online</span>
+      </div>
+
+      <% if (!emailActivity || emailActivity.dataDays === 0) { %>
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-8 border border-slate-200 dark:border-slate-700 text-center">
+        <svg class="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        <p class="text-slate-600 dark:text-slate-300 font-medium">Keine Aktivitätsdaten vorhanden</p>
+        <p class="text-sm text-slate-400 mt-1">Klicke im Dev-Menü auf <strong>Mail Flow</strong> oder warte auf den täglichen Abruf (06:00).<br>
+          Benötigte Permission: <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded text-xs">Reports.Read.All</code></p>
+      </div>
+      <% } else {
+        const sentPct     = emailActivity.totalReceived > 0 ? Math.round(emailActivity.totalSent / (emailActivity.totalSent + emailActivity.totalReceived) * 100) : 0;
+        const readRate    = emailActivity.totalReceived > 0 ? Math.round(emailActivity.totalRead / emailActivity.totalReceived * 100) : 0;
+      %>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <!-- Gesendet -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Gesendet</p>
+              <p class="text-2xl font-bold text-blue-600 dark:text-blue-400"><%= emailActivity.totalSent.toLocaleString() %></p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400">letzte <%= emailActivity.dataDays %> Tag<%= emailActivity.dataDays !== 1 ? 'e' : '' %> · Ø <%= emailActivity.dataDays > 0 ? Math.round(emailActivity.totalSent / emailActivity.dataDays).toLocaleString() : 0 %>/Tag</p>
+        </div>
+
+        <!-- Empfangen -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Empfangen</p>
+              <p class="text-2xl font-bold text-slate-700 dark:text-slate-300"><%= emailActivity.totalReceived.toLocaleString() %></p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400">inkl. Spam & Quarantäne · Ø <%= emailActivity.dataDays > 0 ? Math.round(emailActivity.totalReceived / emailActivity.dataDays).toLocaleString() : 0 %>/Tag</p>
+        </div>
+
+        <!-- Gelesen -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Gelesen</p>
+              <p class="text-2xl font-bold text-green-600 dark:text-green-400"><%= emailActivity.totalRead.toLocaleString() %></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full bg-green-500 rounded-full" style="width: <%= readRate %>%"></div>
+            </div>
+            <span class="text-xs text-slate-400 flex-shrink-0"><%= readRate %>% Leserate</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aktivitätsverlauf -->
+      <% if (emailActivity.timeline && emailActivity.timeline.length > 0) { %>
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">E-Mail Aktivitätsverlauf</h3>
+        <canvas id="activityChart" height="70"></canvas>
+      </div>
+      <% } %>
+      <% } /* emailActivity */ %>
+    </div>
+
+    <!-- Divider -->
+    <div class="border-t border-slate-200 dark:border-slate-700 mb-6"></div>
+
+    <!-- ═══ Mail Flow Status (Bedrohungsklassifizierung) ═══ -->
+    <div>
+      <div class="flex items-center gap-2 mb-4">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Mail Flow – Bedrohungsklassifizierung</h2>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 font-medium">EOP / MDO</span>
+      </div>
+
+      <% if (stats.total === 0) { %>
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 flex items-start gap-4">
+        <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Noch keine Mail Flow Klassifizierungsdaten</p>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            Der <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">getMailFlowStatusReport</code>-Endpunkt liefert Daten über Spam, Malware, Phishing und gute E-Mails nach EOP-Klassifizierung.<br>
+            Diese Daten sind manchmal erst nach einigen Tagen verfügbar oder erfordern eine aktive Bedrohungsfilterung im Tenant.
+          </p>
+          <p class="text-xs text-slate-400 mt-1">Klicke im Dev-Menü auf <strong>Mail Flow</strong> um es erneut zu versuchen.</p>
+        </div>
+      </div>
+      <% } else { %>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <% const threatCards = [
+          { label: 'Legitime E-Mails', value: stats.good,    color: '#22c55e', bg: 'bg-green-100 dark:bg-green-900/30' },
+          { label: 'Spam',             value: stats.spam,    color: '#f59e0b', bg: 'bg-yellow-100 dark:bg-yellow-900/30' },
+          { label: 'Malware',          value: stats.malware, color: '#ef4444', bg: 'bg-red-100 dark:bg-red-900/30' },
+          { label: 'Phishing',         value: stats.phish,   color: '#f97316', bg: 'bg-orange-100 dark:bg-orange-900/30' },
+        ]; %>
+        <% threatCards.forEach(c => {
+          const pct = stats.total > 0 ? Math.round((c.value||0) / stats.total * 100) : 0;
+        %>
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider"><%= c.label %></p>
+          <p class="text-3xl font-bold mt-1" style="color: <%= c.color %>"><%= (c.value||0).toLocaleString() %></p>
+          <div class="mt-2 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div class="h-full rounded-full" style="width: <%= pct %>%; background-color: <%= c.color %>"></div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1"><%= pct %>% des Volumens</p>
+        </div>
+        <% }) %>
+      </div>
+
+      <!-- Erweiterte Statistiken -->
+      <div class="grid grid-cols-3 gap-4 mb-4">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Spoofing erkannt</p>
+            <p class="text-xl font-bold text-slate-900 dark:text-white"><%= (stats.spoof||0).toLocaleString() %></p>
+          </div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Edge Block</p>
+            <p class="text-xl font-bold text-slate-900 dark:text-white"><%= (stats.edgeBlock||0).toLocaleString() %></p>
+          </div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Quarantäne</p>
+            <p class="text-xl font-bold text-slate-900 dark:text-white"><%= (stats.quarantine||0).toLocaleString() %></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mail Flow Verlauf Chart -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Bedrohungsverlauf (Inbound)</h3>
+        <canvas id="mailFlowChart" height="80"></canvas>
+      </div>
+      <% } %>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>
+
+<script>
+const mfData  = <%- timeline %>;
+const actData = <%- JSON.stringify(emailActivity ? emailActivity.timeline : []) %>;
+
+if (actData.length > 0 && document.getElementById('activityChart')) {
+  const isDark = document.documentElement.classList.contains('dark');
+  const gridColor = isDark ? 'rgba(148,163,184,0.1)' : 'rgba(148,163,184,0.2)';
+  new Chart(document.getElementById('activityChart'), {
+    type: 'line',
+    data: {
+      labels: actData.map(d => d.date),
+      datasets: [
+        { label: 'Gesendet',  data: actData.map(d => d.sent),     borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', tension: 0.3, fill: true, pointRadius: actData.length === 1 ? 5 : 3 },
+        { label: 'Empfangen', data: actData.map(d => d.received), borderColor: '#94a3b8', tension: 0.3, fill: false, pointRadius: actData.length === 1 ? 5 : 3 },
+        { label: 'Gelesen',   data: actData.map(d => d.read),     borderColor: '#22c55e', tension: 0.3, fill: false, pointRadius: actData.length === 1 ? 5 : 3 },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: isDark ? '#94a3b8' : '#475569', font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: isDark ? '#94a3b8' : '#475569', font: { size: 10 } } },
+        y: { grid: { color: gridColor }, ticks: { color: isDark ? '#94a3b8' : '#475569', font: { size: 10 } }, suggestedMin: 0 }
+      }
+    }
+  });
+}
+
+if (mfData.length > 0 && document.getElementById('mailFlowChart')) {
+  const isDark = document.documentElement.classList.contains('dark');
+  const gridColor = isDark ? 'rgba(148,163,184,0.1)' : 'rgba(148,163,184,0.2)';
+  new Chart(document.getElementById('mailFlowChart'), {
+    type: 'bar',
+    data: {
+      labels: mfData.map(d => d.date),
+      datasets: [
+        { label: 'Legitim',   data: mfData.map(d => d.good),    backgroundColor: 'rgba(34,197,94,0.7)' },
+        { label: 'Spam',      data: mfData.map(d => d.spam),    backgroundColor: 'rgba(245,158,11,0.7)' },
+        { label: 'Phishing',  data: mfData.map(d => d.phish),   backgroundColor: 'rgba(249,115,22,0.7)' },
+        { label: 'Malware',   data: mfData.map(d => d.malware), backgroundColor: 'rgba(239,68,68,0.7)' },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: isDark ? '#94a3b8' : '#475569', font: { size: 11 } } } },
+      scales: {
+        x: { stacked: true, grid: { color: gridColor }, ticks: { color: isDark ? '#94a3b8' : '#475569', font: { size: 10 } } },
+        y: { stacked: true, grid: { color: gridColor }, ticks: { color: isDark ? '#94a3b8' : '#475569', font: { size: 10 } } }
+      }
+    }
+  });
+}
+</script>

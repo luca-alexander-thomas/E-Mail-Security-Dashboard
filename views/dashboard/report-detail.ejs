@@ -1,0 +1,244 @@
+<%- include('../partials/head', { title: 'Berichtsdetails' }) %>
+
+<%
+  const meta   = report.full_data && report.full_data.report_metadata ? report.full_data.report_metadata : {};
+  const policy = report.policy_published || {};
+  const auth   = report.auth_results     || {};
+  const ids    = report.identifiers      || {};
+  const isCompatible = report.evaluated_dkim === 'pass' && report.evaluated_spf === 'pass';
+  const isForwarded  = !isCompatible && (report.evaluated_dkim === 'pass' || report.evaluated_spf === 'pass');
+  const isFailed     = report.evaluated_dkim !== 'pass' && report.evaluated_spf !== 'pass';
+%>
+
+<div class="flex h-full min-h-screen">
+  <%- include('../partials/sidebar') %>
+
+  <main class="ml-64 flex-1 p-8">
+    <!-- Breadcrumb -->
+    <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-6">
+      <a href="/dashboard" class="hover:text-slate-800 dark:hover:text-slate-200">Übersicht</a>
+      <span>›</span>
+      <a href="/dashboard/reports" class="hover:text-slate-800 dark:hover:text-slate-200">Berichte</a>
+      <span>›</span>
+      <span class="text-slate-800 dark:text-slate-200 font-medium">Bericht #<%= report.id %></span>
+    </div>
+
+    <!-- Header -->
+    <div class="flex items-start justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white"><%= report.org_name %></h1>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">
+          <%= new Date(report.date_range_begin).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) %>
+          –
+          <%= new Date(report.date_range_end).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) %>
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <% if (isCompatible) { %>
+          <span class="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-xl text-sm font-semibold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            DMARC Compatible
+          </span>
+        <% } else if (isForwarded) { %>
+          <span class="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-semibold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Weitergeleitet
+          </span>
+        <% } else { %>
+          <span class="inline-flex items-center gap-2 px-4 py-2 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-xl text-sm font-semibold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Fehlgeschlagen
+          </span>
+        <% } %>
+        <span class="inline-flex items-center px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-medium">
+          <%= report.mail_count %> E-Mail<%= report.mail_count !== 1 ? 's' : '' %>
+        </span>
+      </div>
+    </div>
+
+    <!-- Indicator Cards -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="bg-white dark:bg-slate-800 rounded-xl border-2 <%= isCompatible ? 'border-green-200 dark:border-green-800' : 'border-slate-200 dark:border-slate-700' %> p-5 text-center shadow-sm">
+        <div class="w-12 h-12 mx-auto mb-3 <%= isCompatible ? 'bg-green-100 dark:bg-green-900/40' : 'bg-slate-100 dark:bg-slate-700' %> rounded-full flex items-center justify-center">
+          <svg class="w-6 h-6 <%= isCompatible ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500' %>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <p class="text-3xl font-bold <%= isCompatible ? 'text-green-700 dark:text-green-400' : 'text-slate-300 dark:text-slate-600' %>"><%= isCompatible ? report.mail_count : 0 %></p>
+        <p class="text-sm font-medium <%= isCompatible ? 'text-green-600 dark:text-green-500' : 'text-slate-400 dark:text-slate-500' %> mt-1">Compatible</p>
+        <p class="text-xs text-slate-400 dark:text-slate-500">DKIM + SPF bestanden</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-xl border-2 <%= isForwarded ? 'border-blue-200 dark:border-blue-800' : 'border-slate-200 dark:border-slate-700' %> p-5 text-center shadow-sm">
+        <div class="w-12 h-12 mx-auto mb-3 <%= isForwarded ? 'bg-blue-100 dark:bg-blue-900/40' : 'bg-slate-100 dark:bg-slate-700' %> rounded-full flex items-center justify-center">
+          <svg class="w-6 h-6 <%= isForwarded ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500' %>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <p class="text-3xl font-bold <%= isForwarded ? 'text-blue-700 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600' %>"><%= isForwarded ? report.mail_count : 0 %></p>
+        <p class="text-sm font-medium <%= isForwarded ? 'text-blue-600 dark:text-blue-500' : 'text-slate-400 dark:text-slate-500' %> mt-1">Weitergeleitet</p>
+        <p class="text-xs text-slate-400 dark:text-slate-500">Ein Mechanismus bestanden</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-xl border-2 <%= isFailed ? 'border-red-200 dark:border-red-800' : 'border-slate-200 dark:border-slate-700' %> p-5 text-center shadow-sm">
+        <div class="w-12 h-12 mx-auto mb-3 <%= isFailed ? 'bg-red-100 dark:bg-red-900/40' : 'bg-slate-100 dark:bg-slate-700' %> rounded-full flex items-center justify-center">
+          <svg class="w-6 h-6 <%= isFailed ? 'text-red-600 dark:text-red-400' : 'text-slate-400 dark:text-slate-500' %>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <p class="text-3xl font-bold <%= isFailed ? 'text-red-700 dark:text-red-400' : 'text-slate-300 dark:text-slate-600' %>"><%= isFailed ? report.mail_count : 0 %></p>
+        <p class="text-sm font-medium <%= isFailed ? 'text-red-600 dark:text-red-500' : 'text-slate-400 dark:text-slate-500' %> mt-1">Fehlgeschlagen</p>
+        <p class="text-xs text-slate-400 dark:text-slate-500">DKIM + SPF fehlgeschlagen</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-6">
+      <!-- Report Metadata -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
+          <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">DMARC Report Details</h2>
+        </div>
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-slate-50 dark:divide-slate-700/50">
+            <% [
+              ['Provider', report.org_name],
+              ['Domain', report.domain],
+            ].forEach(([k,v]) => { %>
+            <tr>
+              <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium w-40"><%= k %></td>
+              <td class="px-5 py-3 text-slate-800 dark:text-slate-200 font-medium"><%= v %></td>
+            </tr>
+            <% }) %>
+            <tr>
+              <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Coverage</td>
+              <td class="px-5 py-3 text-slate-800 dark:text-slate-200 text-xs">
+                <%= new Date(report.date_range_begin).toLocaleString('de-DE') %><br>
+                <span class="text-slate-400">bis</span><br>
+                <%= new Date(report.date_range_end).toLocaleString('de-DE') %>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Report ID</td>
+              <td class="px-5 py-3 font-mono text-xs text-slate-600 dark:text-slate-400 break-all"><%= meta.report_id || '—' %></td>
+            </tr>
+            <% if (meta.email) { %>
+            <tr>
+              <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Email Contact</td>
+              <td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= meta.email %></td>
+            </tr>
+            <% } %>
+            <% if (meta.extra_contact_info) { %>
+            <tr>
+              <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Extra Contact</td>
+              <td class="px-5 py-3 break-all">
+                <% if (String(meta.extra_contact_info).startsWith('http')) { %>
+                  <a href="<%= meta.extra_contact_info %>" target="_blank" rel="noopener" class="text-blue-600 dark:text-blue-400 hover:underline text-xs"><%= meta.extra_contact_info %></a>
+                <% } else { %><span class="text-slate-800 dark:text-slate-200"><%= meta.extra_contact_info %></span><% } %>
+              </td>
+            </tr>
+            <% } %>
+            <tr>
+              <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Errors</td>
+              <td class="px-5 py-3"><span class="text-green-600 dark:text-green-400 font-medium">None</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Right column -->
+      <div class="space-y-4">
+        <!-- Policy -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
+            <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Policy Published</h2>
+          </div>
+          <table class="w-full text-sm">
+            <tbody class="divide-y divide-slate-50 dark:divide-slate-700/50">
+              <tr>
+                <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium w-40">Policy (p)</td>
+                <td class="px-5 py-3">
+                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+                    <%= policy.p === 'reject' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400' : policy.p === 'quarantine' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300' %>">
+                    <%= policy.p || '—' %>
+                  </span>
+                </td>
+              </tr>
+              <tr><td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Sub-domain policy</td><td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= policy.sp || '—' %></td></tr>
+              <tr><td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">DKIM Alignment</td><td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= policy.adkim === 'r' ? 'Relaxed' : policy.adkim === 's' ? 'Strict' : (policy.adkim || '—') %></td></tr>
+              <tr><td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">SPF Alignment</td><td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= policy.aspf === 'r' ? 'Relaxed' : policy.aspf === 's' ? 'Strict' : (policy.aspf || '—') %></td></tr>
+              <% if (policy.pct !== undefined) { %><tr><td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Percentage</td><td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= policy.pct %>%</td></tr><% } %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Auth Results -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
+            <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Authentifizierungsergebnisse</h2>
+          </div>
+          <table class="w-full text-sm">
+            <tbody class="divide-y divide-slate-50 dark:divide-slate-700/50">
+              <tr class="bg-slate-50 dark:bg-slate-700/40"><td colspan="2" class="px-5 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">DKIM</td></tr>
+              <tr>
+                <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium w-40">Ergebnis</td>
+                <td class="px-5 py-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                    <%= report.evaluated_dkim === 'pass' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' %>">
+                    <%= report.evaluated_dkim %>
+                  </span>
+                </td>
+              </tr>
+              <% if (auth.dkim) { %>
+              <tr><td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Domain</td><td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= auth.dkim.domain || '—' %></td></tr>
+              <tr><td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Selector</td><td class="px-5 py-3 font-mono text-xs text-slate-600 dark:text-slate-400"><%= auth.dkim.selector || '—' %></td></tr>
+              <% } %>
+              <tr class="bg-slate-50 dark:bg-slate-700/40"><td colspan="2" class="px-5 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">SPF</td></tr>
+              <tr>
+                <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Ergebnis</td>
+                <td class="px-5 py-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                    <%= report.evaluated_spf === 'pass' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' %>">
+                    <%= report.evaluated_spf %>
+                  </span>
+                </td>
+              </tr>
+              <% if (auth.spf) { %>
+              <tr><td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Domain</td><td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= auth.spf.domain || '—' %></td></tr>
+              <tr><td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Scope</td><td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= auth.spf.scope || '—' %></td></tr>
+              <% } %>
+              <tr><td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Disposition</td><td class="px-5 py-3">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                  <%= report.evaluated_disposition === 'none' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400' :
+                      report.evaluated_disposition === 'quarantine' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' %>">
+                  <%= report.evaluated_disposition %>
+                </span>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Source Info -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+          <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Quell-Informationen</h2>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">IP-Adresse</span><span class="font-mono font-medium text-slate-800 dark:text-slate-200"><%= report.source_ip %></span></div>
+            <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Hostname (rDNS)</span><span class="font-mono text-xs text-slate-600 dark:text-slate-400" id="rdns-result">Wird ermittelt…</span></div>
+            <% if (ids.header_from) { %><div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Header From</span><span class="text-slate-800 dark:text-slate-200"><%= ids.header_from %></span></div><% } %>
+            <% if (ids.envelope_from) { %><div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Envelope From</span><span class="text-slate-800 dark:text-slate-200"><%= ids.envelope_from %></span></div><% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <a href="/dashboard/reports" class="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Zurück zur Übersicht
+      </a>
+    </div>
+  </main>
+</div>
+
+<script>
+fetch('/api/rdns/<%= report.source_ip %>')
+  .then(r => r.json())
+  .then(d => { document.getElementById('rdns-result').textContent = d.hostname || 'Kein PTR-Eintrag'; })
+  .catch(() => { document.getElementById('rdns-result').textContent = 'Nicht verfügbar'; });
+</script>
+
+</body>
+</html>
