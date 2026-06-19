@@ -10,7 +10,7 @@ router.get('/', async (req, res, next) => {
     const days = parseInt(req.query.days) || 30;
     const [
       overview, timeline, topSources, topOrgs, domains, categories, trend, score,
-      secureScore, dnsHealth, alertStats, emailActivity, tlsrptStats,
+      secureScore, dnsHealth, alertStats, emailActivity, tlsrptStats, mailFlowStats,
     ] = await Promise.all([
       q.getOverview(days), q.getTimeline(days), q.getTopSources(10, days),
       q.getTopOrganizations(10, days), q.getDomains(days), q.getSourceCategories(days),
@@ -20,11 +20,12 @@ router.get('/', async (req, res, next) => {
       q.getAlertStats().catch(() => ({ total: 0, bySeverity: {} })),
       q.getEmailActivityStats(7).catch(() => null),
       q.getTlsrptStats(days).catch(() => null),
+      q.getMailFlowStats(days).catch(() => null),
     ]);
     res.render('dashboard/index', {
       user: req.session.user, overview, timeline: JSON.stringify(timeline),
       topSources, topOrgs, domains, categories, trend, score, days,
-      secureScore, dnsHealth, alertStats, emailActivity, tlsrptStats,
+      secureScore, dnsHealth, alertStats, emailActivity, tlsrptStats, mailFlowStats,
       activePage: 'dashboard',
     });
   } catch (err) { next(err); }
