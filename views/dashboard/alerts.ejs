@@ -1,7 +1,7 @@
 <%- include('../partials/head', { title: 'Sicherheitswarnungen' }) %>
 <div class="flex h-full">
   <%- include('../partials/sidebar') %>
-  <main class="flex-1 ml-64 p-6 overflow-y-auto">
+  <main class="flex-1 lg:ml-64 pt-14 lg:pt-0 p-4 lg:p-6 overflow-y-auto min-w-0">
 
     <div class="flex items-center justify-between mb-6">
       <div>
@@ -66,6 +66,7 @@
     </div>
     <% } else { %>
     <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <div class="overflow-x-auto">
       <% const sevBadge = {
         critical: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
         high: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
@@ -125,6 +126,7 @@
           <% }) %>
         </tbody>
       </table>
+      </div>
     </div>
 
     <!-- Pagination -->

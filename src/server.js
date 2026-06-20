@@ -5,6 +5,7 @@ const MySQLStore = require('express-mysql-session')(session);
 const path = require('path');
 const { initOIDC } = require('./config/oidc');
 const { startScheduler } = require('./services/scheduler');
+const updater = require('./services/updater');
 
 const app = express();
 
@@ -45,9 +46,17 @@ async function start() {
 
   app.locals.showDevTools = process.env.SHOW_DEV_TOOLS === 'true';
 
+  // Update-Status in jede View weitergeben
+  app.use((req, res, next) => {
+    const check = updater.getLastCheck();
+    res.locals.updateAvailable = check?.hasUpdate || false;
+    next();
+  });
+
   app.use('/auth', require('./routes/auth'));
   app.use('/api', require('./routes/api'));
   app.use('/dashboard', require('./routes/dashboard'));
+  app.use('/dashboard/updates', require('./routes/updates'));
 
   app.get('/login', (req, res) => {
     if (req.session && req.session.user) return res.redirect('/dashboard');
@@ -65,6 +74,7 @@ async function start() {
   });
 
   startScheduler();
+  updater.startAutoCheck();
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {

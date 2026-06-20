@@ -6,3 +6,5 @@ node_modules/
 dmarc/
 DEPLOY.md
 migrate.js
+version.json
+.node-pid
