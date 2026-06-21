@@ -134,6 +134,7 @@
       Secure Score
     </a>
 
+    <% if (user.role === 'admin') { %>
     <!-- Sektion: System -->
     <div class="pt-4 mt-2 border-t border-slate-800">
       <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">System</p>
@@ -151,8 +152,9 @@
       <span class="ml-auto w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0"></span>
       <% } %>
     </a>
+    <% } %>
 
-    <% if (locals.showDevTools) { %>
+    <% if (locals.showDevTools && user.role === 'admin') { %>
     <div class="pt-4 mt-2 border-t border-slate-800">
       <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Dev: Daten abrufen</p>
       <div class="px-3 grid grid-cols-2 gap-1.5">

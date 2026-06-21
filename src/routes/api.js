@@ -55,6 +55,7 @@ router.get('/trend', async (req, res, next) => {
 });
 
 router.get('/export', async (req, res, next) => {
+  if (req.session?.user?.role !== 'admin') return res.status(403).json({ error: 'Kein Zugriff' });
   try {
     const filters = {
       dkim: req.query.dkim || '', spf: req.query.spf || '',
@@ -157,6 +158,7 @@ router.get('/dns-health/history', async (req, res, next) => {
 // ─── Admin / Manueller Refresh ────────────────────────────────────────────────
 
 router.post('/admin/refresh', async (req, res) => {
+  if (req.session?.user?.role !== 'admin') return res.status(403).json({ error: 'Kein Zugriff' });
   const service = req.query.service || req.body?.service || 'all';
   const valid = ['all', 'securescore', 'mailflow', 'emailactivity', 'alerts', 'dns'];
   if (!valid.includes(service)) return res.status(400).json({ error: 'Ungültiger Service' });

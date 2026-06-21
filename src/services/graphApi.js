@@ -208,4 +208,26 @@ async function fetchAlerts() {
   console.log(`[GraphAPI] Alerts: ${alerts.length} gespeichert`);
 }
 
-module.exports = { fetchSecureScore, fetchMailFlow, fetchEmailActivity, fetchAlerts };
+async function checkUserGroups(userId, groupIds) {
+  if (!userId || !groupIds || groupIds.length === 0) return [];
+  const token = await getToken();
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${userId}/checkMemberGroups`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ groupIds }),
+    }
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`checkMemberGroups (${res.status}): ${body.error?.message || res.statusText}`);
+  }
+  const data = await res.json();
+  return data.value || [];
+}
+
+module.exports = { fetchSecureScore, fetchMailFlow, fetchEmailActivity, fetchAlerts, checkUserGroups };

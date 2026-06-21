@@ -16,11 +16,13 @@
           <option value="30" <%= days==30 ? 'selected' : '' %>>Letzte 30 Tage</option>
           <option value="90" <%= days==90 ? 'selected' : '' %>>Letzte 90 Tage</option>
         </select>
+        <% if (isAdmin) { %>
         <a href="/api/export?days=<%= days %>"
            class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           CSV Export
         </a>
+        <% } %>
       </div>
     </div>
 
@@ -66,8 +68,8 @@
             <% sources.forEach(function(s, i) { %>
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
               <td class="px-4 py-3 text-slate-400 dark:text-slate-500 text-xs"><%= i+1 %></td>
-              <td class="px-4 py-3 font-mono font-medium text-slate-800 dark:text-slate-200"><%= s.sourceIp %></td>
-              <td class="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 font-mono rdns-cell" data-ip="<%= s.sourceIp %>">
+              <td class="px-4 py-3 font-mono font-medium text-slate-800 dark:text-slate-200"><%= isAdmin ? s.sourceIp : anonIp(s.sourceIp) %></td>
+              <td class="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 font-mono rdns-cell"<% if (isAdmin) { %> data-ip="<%= s.sourceIp %>"<% } %>>
                 <span class="text-slate-300 dark:text-slate-600">Wird geladen…</span>
               </td>
               <td class="px-4 py-3 text-right text-slate-700 dark:text-slate-200"><%= s.totalEmails.toLocaleString('de-DE') %></td>
@@ -94,8 +96,10 @@
               </td>
               <td class="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 max-w-xs truncate" title="<%= s.reportingOrgs %>"><%= s.reportingOrgs %></td>
               <td class="px-4 py-3">
+                <% if (isAdmin) { %>
                 <a href="/dashboard/reports?search=<%= s.sourceIp %>&days=<%= days %>"
                    class="text-xs text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap">Berichte →</a>
+                <% } %>
               </td>
             </tr>
             <% }) %>
@@ -110,6 +114,7 @@
 const cells = document.querySelectorAll('.rdns-cell');
 cells.forEach((cell, i) => {
   const ip = cell.dataset.ip;
+  if (!ip) { cell.innerHTML = '<span class="text-slate-300 dark:text-slate-600">—</span>'; return; }
   setTimeout(() => {
     fetch('/api/rdns/' + encodeURIComponent(ip))
       .then(r => r.json())

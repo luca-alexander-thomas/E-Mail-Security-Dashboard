@@ -118,7 +118,7 @@
             <% if (meta.email) { %>
             <tr>
               <td class="px-5 py-3 text-slate-500 dark:text-slate-400 font-medium">Email Contact</td>
-              <td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= meta.email %></td>
+              <td class="px-5 py-3 text-slate-800 dark:text-slate-200"><%= isAdmin ? meta.email : anonEmail(meta.email) %></td>
             </tr>
             <% } %>
             <% if (meta.extra_contact_info) { %>
@@ -215,7 +215,7 @@
         <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
           <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Quell-Informationen</h2>
           <div class="space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">IP-Adresse</span><span class="font-mono font-medium text-slate-800 dark:text-slate-200"><%= report.source_ip %></span></div>
+            <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">IP-Adresse</span><span class="font-mono font-medium text-slate-800 dark:text-slate-200"><%= isAdmin ? report.source_ip : anonIp(report.source_ip) %></span></div>
             <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Hostname (rDNS)</span><span class="font-mono text-xs text-slate-600 dark:text-slate-400" id="rdns-result">Wird ermittelt…</span></div>
             <% if (ids.header_from) { %><div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Header From</span><span class="text-slate-800 dark:text-slate-200"><%= ids.header_from %></span></div><% } %>
             <% if (ids.envelope_from) { %><div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Envelope From</span><span class="text-slate-800 dark:text-slate-200"><%= ids.envelope_from %></span></div><% } %>
@@ -234,10 +234,14 @@
 </div>
 
 <script>
+<% if (isAdmin) { %>
 fetch('/api/rdns/<%= report.source_ip %>')
   .then(r => r.json())
   .then(d => { document.getElementById('rdns-result').textContent = d.hostname || 'Kein PTR-Eintrag'; })
   .catch(() => { document.getElementById('rdns-result').textContent = 'Nicht verfügbar'; });
+<% } else { %>
+document.getElementById('rdns-result').textContent = '—';
+<% } %>
 </script>
 
 </body>

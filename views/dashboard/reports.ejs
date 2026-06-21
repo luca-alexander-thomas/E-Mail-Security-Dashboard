@@ -9,11 +9,13 @@
         <h1 class="text-2xl font-bold text-slate-900 dark:text-white">DMARC Berichte</h1>
         <p class="text-slate-500 dark:text-slate-400 text-sm mt-1"><%= total.toLocaleString('de-DE') %> Einträge gefunden</p>
       </div>
+      <% if (isAdmin) { %>
       <a href="/api/export?days=<%= filters.days %>&dkim=<%= filters.dkim %>&spf=<%= filters.spf %>&disposition=<%= filters.disposition %>&search=<%= filters.search %>&category=<%= filters.category %>"
          class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
         CSV Export
       </a>
+      <% } %>
     </div>
 
     <!-- Category Tabs -->
@@ -122,7 +124,7 @@
               <td class="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap"><%= new Date(r.date_range_begin).toLocaleDateString('de-DE') %></td>
               <td class="px-4 py-3 font-medium text-slate-800 dark:text-slate-200 max-w-xs truncate"><%= r.org_name %></td>
               <td class="px-4 py-3 text-slate-600 dark:text-slate-300"><%= r.domain %></td>
-              <td class="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 text-xs"><%= r.source_ip %></td>
+              <td class="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 text-xs"><%= isAdmin ? r.source_ip : anonIp(r.source_ip) %></td>
               <td class="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-200"><%= r.mail_count %></td>
               <td class="px-4 py-3 text-center">
                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
